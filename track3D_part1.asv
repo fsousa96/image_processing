@@ -29,21 +29,21 @@ bg_gray = median(imgseq1.rgb,3);
      connected_components = bwlabel(imgdiffiltered(:,:,i));
      s = regionprops(connected_components, 'centroid');
      a = regionprops(connected_components, 'area');
+     figure(i)
+     imagesc(bwlabel(imgdiffiltered(:,:,i)));
+     title('Connected components');
+
+%      if (i == 6)
 %      figure(5)
 %      imagesc(bwlabel(imgdiffiltered(:,:,i)));
 %      title('Connected components');
-
-     if (i == 6)
-     figure(5)
-     imagesc(bwlabel(imgdiffiltered(:,:,i)));
-     title('Connected components');
-     end
-     
-     if (i == 5)
-     figure(2)
-     imagesc(bwlabel(imgdiffiltered(:,:,i)));
-     title('Connected components - previous');
-     end
+%      end
+%      
+%      if (i == 5)
+%      figure(2)
+%      imagesc(bwlabel(imgdiffiltered(:,:,i)));
+%      title('Connected components - previous');
+%      end
      
      
      for k=1:size(s,1) % for every region 
@@ -61,9 +61,9 @@ bg_gray = median(imgseq1.rgb,3);
      measurements(i).centroids = [centroidX' centroidY'];
      measurements(i).ids = id;
      
-     assignin('base','measurements', measurements);
      for k=1:size(s,1)
         text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
+        measurements(i).centroids(k,3) = k;
      end
      %hold on
      %plot(centroids(:,1), centroids(:, 2), 'b*');
@@ -73,24 +73,37 @@ bg_gray = median(imgseq1.rgb,3);
      
  end
  
- %for i=4:nr_frames
+ for i=4:nr_frames
       %  current = imgdiffiltered(i);
        % previous = imgdiffiltered(i-1);
-        
-        for a=1:size(measurements(6).centroids,1)
-            for b=1:size(measurements(5).centroids,1)
-             X = [measurements(6).centroids(a, 1),measurements(6).centroids(a, 2); measurements(5).centroids(b, 1), measurements(5).centroids(b, 2)];
+        %size(measurements(6).centroids,1);
+        for a=1:size(measurements(i).centroids,1)
+            for b=1:size(measurements(i-1).centroids,1)
+             X = [measurements(i).centroids(a, 1),measurements(i).centroids(a, 2); measurements(i-1).centroids(b, 1), measurements(i-1).centroids(b, 2)];
              distances(a, b) = pdist(X, 'euclidean');
             end
             [value, arg] = min(distances(a,:));
             id(a) = arg;
-            measurements(6).ids = measurements(5).ids;
+            size(id, 1);
+            measurements(i).centroids(a,3) = id(a);
             
         end
        
- %end
- assignin('base', 'distances', distances);
+ end
+ 
+  assignin('base', 'distances', distances);
  assignin('base', 'id', id);
+ assignin('base','measurements', measurements);
+ 
+ %%check for movement
+ for i=4:nr_frames
+     current = measurements(i).centtrois;
+     previous = mesaurements(i-1).centroids;
+     
+     
+ end
+ 
+
  
  
  
