@@ -29,21 +29,21 @@ bg_gray = median(imgseq1.rgb,3);
      connected_components = bwlabel(imgdiffiltered(:,:,i));
      s = regionprops(connected_components, 'centroid');
      a = regionprops(connected_components, 'area');
-     figure(1);
+     figure(i);
      imagesc(bwlabel(imgdiffiltered(:,:,i)));
      title('Connected components');
 
-%      if (i == 6)
-%      figure(5)
-%      imagesc(bwlabel(imgdiffiltered(:,:,i)));
-%      title('Connected components');
-%      end
-%      
-%      if (i == 5)
-%      figure(2)
-%      imagesc(bwlabel(imgdiffiltered(:,:,i)));
-%      title('Connected components - previous');
-%      end
+     if (i == 5)
+     figure(i)
+     imagesc(bwlabel(imgdiffiltered(:,:,i)));
+     title('Connected components');
+     end
+     
+     if (i == 4)
+     figure(i)
+     imagesc(bwlabel(imgdiffiltered(:,:,i)));
+     title('Connected components - previous');
+     end
      
      
      for k=1:size(s,1) % for every region 
@@ -61,10 +61,12 @@ bg_gray = median(imgseq1.rgb,3);
      measurements(i).centroids = [centroidX' centroidY'];
      measurements(i).ids = id;
      
-     for k=1:size(s,1)
-        text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
-        measurements(i).centroids(k,3) = k;
-     end
+     %if(i == 5 || i == 4)
+        for k=1:size(s,1)
+            text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
+            measurements(i).centroids(k,3) = k;
+        end
+     %end
      %hold on
      %plot(centroids(:,1), centroids(:, 2), 'b*');
      %hold off
@@ -80,38 +82,55 @@ bg_gray = median(imgseq1.rgb,3);
         for a=1:size(measurements(i).centroids,1)
             for b=1:size(measurements(i-1).centroids,1)
              X = [measurements(i).centroids(a, 1),measurements(i).centroids(a, 2); measurements(i-1).centroids(b, 1), measurements(i-1).centroids(b, 2)];
-             distances(a, b) = pdist(X, 'euclidean');
+             distances(a, b, i) = pdist(X, 'euclidean');
+             areas(a, b, i) = measurements(i).areas(a) - measurements(i-1).areas(b);
+             cost(a, b, i) = distances(a, b, i);% - areas(a, b, i);
+             %if(distances(a, b) > 60)
+              %   distances(a, b) = NaN;
+             %end
             end
-            [value, arg] = min(distances(a,:));
-            id(a) = arg;
-            size(id, 1);
+            [value, arg] = min(distances(a, :, 4));
+            id(a) = arg;%returns the index of the closest centroid of the previous frame
             measurements(i).centroids(a,3) = id(a);
             
         end
-       
+               
+ end
+ for i=1:size(distances, 3)
+     for a=1:size(distances, 2)
+         for b=1:size(distances, 1)
+             if(distances(a, b, i) < 10)
+                 distances(a, b, i) = NaN;
+             end
+         end
+     end
  end
  
-  assignin('base', 'distances', distances);
+ assignin('base', 'distances', distances);
+ assignin('base', 'areas', areas);
  assignin('base', 'id', id);
  assignin('base','measurements', measurements);
- 
+ %measurements(4).areas(1)
  %%check for movement
- for i=3:nr_frames
-    %find( measurements(i).centroids(:, 3), 1)
-    if(i == 3)
-     index = 1;
-    end
-    
-     object = measurements(i).ids(:,find(measurements(i).centroids(:, 3) == index))
-     %escolher o centroid mais proximo
-     index = object
+ for i=4:nr_frames
+     if(i == 4)
+      index = 1;
+     end
+     [assignment, cost] = HungarianMethod(distances(:, :, i));
      
- end
- 
+     object(i) = measurements(i).ids(:, find(assignment == index));
+     index = object(i)
 
- 
- 
- 
+%    
+%      areas = measurements(i).areas(find(measurements(i).centroids(:, 3) == index))
+     %imageobj = measurements(i).areas(:, find(measurements(i-1).centroids(:,3) == index))
+     %index = 
+%      if(size(object,1) > 1) %choose the one with the closest area
+%          [~, index] = min(abs(imageobj - measurements(i).areas(1)))
+%      else
+%          index = object;
+%      end    
+ end
 
 end
 
