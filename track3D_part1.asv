@@ -120,12 +120,10 @@ bg_gray = median(imgseq1.rgb,3);
  %% check for movement
  
  for i=4:nr_frames
-%       if(i == 4)
-%        index = 1;
-%       end
+
      [assignment, cost] = HungarianMethod(cost_function(:, :, i));
     % index = assignment(index);
-        %i
+    
     for a=1:length(assignment)
         costs = cost_function(a,assignment(a),i);
         if(costs > 0.6)
@@ -143,8 +141,8 @@ bg_gray = median(imgseq1.rgb,3);
   
   for a = 4:size(objects, 2)
     
-      for b = 5:size(objects, 1)
-          moving_objects(a, b) = ;
+      for b = 4:size(objects, 1) - 1
+          moving_objects(a, b +1) = moving_objects(;
       end
       
   end
