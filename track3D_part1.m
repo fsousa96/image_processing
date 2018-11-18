@@ -154,11 +154,18 @@ bg_gray = median(imgseq1.rgb,3);
         continue;
      end
       for b = 5:size(objects, 2);
-          x = objects(x, b - 1);
+          if(b == 5)
+              x = moving_objects(a,4);
+          end
+          if( b> 5) 
+             x = objects(x, b-1);
+          end 
           if(x == 0)              
             break;
           end
-          moving_objects(a, b) = objects(x, b);         
+          moving_objects(a, b) = objects(x, b);      
+          
+          
       end
           if(x == 0)              
             continue;
