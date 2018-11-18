@@ -119,15 +119,22 @@ bg_gray = median(imgseq1.rgb,3);
  
  %% check for movement
  
- for i=4:nr_frames
+ for i=5:nr_frames
 
      [assignment, cost] = HungarianMethod(cost_function(:, :, i));
     % index = assignment(index);
-    
+    ob
     for a=1:length(assignment)
         costs = cost_function(a,assignment(a),i);
-        if(costs > 0.6)
+        if(costs < 0.6)
             objects(a, i) = false;
+            if (find(objetos_em_movimento(:,i-1)== a)== 0)
+                objetos_em_movimento(size(objetos_em_movimento, 1)+1,:) = zeros([size(objetos_em_movimento, 2) 1]);
+                objetos_em_movimento(size(objetos_em_movimento, 1),size(objetos_em_movimento, 2) )= assignment(a);
+            else
+            objetos_em_movimento(find(objetos_em_movimento(:,i-1)== a), i)= assignment(a);
+            end
+                
         else
             objects(a, i) = assignment(a);
         end
@@ -139,12 +146,22 @@ bg_gray = median(imgseq1.rgb,3);
 
   assignin('base','objects', objects);
   
-  for a = 4:size(objects, 2)
-    
-      for b = 4:size(objects, 1) - 1
-          moving_objects(a, b +1) = moving_objects(;
+  for a = 1:size(objects, 1)
+    moving_objects(a, 4) = objects(a, 4);
+    x = moving_objects(a,4);
+    if(x == 0)
+        continue;
+    end
+      for b = 5:size(objects, 2);
+          x = objects(x, b - 1);
+          if(x == 0)              
+            break;
+          end
+          moving_objects(a, b) = objects(x, b);         
       end
-      
+          if(x == 0)              
+            continue;
+          end
   end
      
    assignin('base','moving_objects', moving_objects);  

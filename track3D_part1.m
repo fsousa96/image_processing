@@ -126,11 +126,19 @@ bg_gray = median(imgseq1.rgb,3);
     
     for a=1:length(assignment)
         costs = cost_function(a,assignment(a),i);
-        if(costs > 0.6)
+        if(costs > 0.5)
             objects(a, i) = false;
         else
             objects(a, i) = assignment(a);
         end
+        
+        %             if isempty(find(objetos_em_movimento(:,i-1)==a))
+%                 objetos_em_movimento(size(objetos_em_movimento, 1)+1,:) = zeros([size(objetos_em_movimento, 2) 1]);
+%                 objetos_em_movimento(size(objetos_em_movimento, 1),size(objetos_em_movimento, 2) )= assignment(a);
+%                 objetos_em_movimento(size(objetos_em_movimento, 1),size(objetos_em_movimento, 2) )= a;
+%             else
+%             objetos_em_movimento(find(objetos_em_movimento(:,i-1)== a), i)= assignment(a);
+%             end
         
     end
           
@@ -142,15 +150,19 @@ bg_gray = median(imgseq1.rgb,3);
   for a = 1:size(objects, 1)
     moving_objects(a, 4) = objects(a, 4);
     x = moving_objects(a,4);
+    if(x == 0)
+        continue;
+     end
       for b = 5:size(objects, 2);
-          x = objects(x, b - 1)
+          x = objects(x, b - 1);
+          if(x == 0)              
+            break;
+          end
+          moving_objects(a, b) = objects(x, b);         
+      end
           if(x == 0)              
             continue;
           end
-          moving_objects(a, b) = objects(x, b);
-          
-      end
-      
   end
      
    assignin('base','moving_objects', moving_objects);  
