@@ -17,7 +17,7 @@ bg_gray = median(imgseq1.rgb,3);
 % figure(2);clf;
  for i=1:nr_frames
      imdiff = imgseq1.depth(:,:,i) > 0 & abs(imgseq1.depth(:,:,i) - bg_depth)>.20;
-     imgdiffiltered(:,:,i) = imopen(imdiff,strel('disk',6));
+     imgdiffiltered(:,:,i) = imopen(imdiff,strel('disk',5));
      %figure(1);
     % imagesc([imdiff imgdiffiltered]);
      %title('Difference image and morph filtered');
@@ -26,13 +26,14 @@ bg_gray = median(imgseq1.rgb,3);
      %imagesc([imgseq1.depth(:,:,i) bg_depth]);
      %title('Depth image i and background image');
      %figure(3);
-     connected_components = bwlabel(imgdiffiltered(:,:,i));
-     s = regionprops(connected_components, 'centroid');
-     a = regionprops(connected_components, 'area');
+     connected_components(:,:,i) = bwlabel(imgdiffiltered(:,:,i));
+     s = regionprops(connected_components(:,:,i), 'centroid');
+     a = regionprops(connected_components(:,:,i), 'area');
+     b = regionprops(connected_components(:,:,i), 'BoundingBox');
       
-     figure(i);
-     imagesc(bwlabel(imgdiffiltered(:,:,i)));
-     title('Connected components');
+%      figure(i);
+%      imagesc(bwlabel(imgdiffiltered(:,:,i)));
+%      title('Connected components');
 
 
 %      if (i == 5)
@@ -52,6 +53,7 @@ bg_gray = median(imgseq1.rgb,3);
          centroid = s(k).Centroid;
          area = a(k).Area;
          id(k) = k;
+         %bounding_box(k) = b(k).BoundingBox;
      end
      
      centroids = [s.Centroid];
@@ -62,6 +64,7 @@ bg_gray = median(imgseq1.rgb,3);
      measurements(i).areas = areas';
      measurements(i).centroids = [centroidX' centroidY'];
      measurements(i).ids = id;
+     measurements(i).boxes = b;
      
      %if(i == 5 || i == 4)
         for k=1:size(s,1)
@@ -87,7 +90,7 @@ bg_gray = median(imgseq1.rgb,3);
              X = [measurements(i).centroids(a, 1),measurements(i).centroids(a, 2); measurements(i-1).centroids(b, 1), measurements(i-1).centroids(b, 2)];
              distances(a, b, i) = pdist(X, 'euclidean');
 %             abs(measurements(i).areas(a) - measurements(i-1).areas(b))
-               if(measurements(i).areas(a) > 350 && measurements(i-1).areas(b) > 350)
+               if(measurements(i).areas(a) > 400 && measurements(i-1).areas(b) > 400)
                 areas(a, b, i) = abs(measurements(i).areas(a)/measurements(i-1).areas(b));
                else
                    areas(a, b, i) = NaN;
@@ -108,7 +111,7 @@ bg_gray = median(imgseq1.rgb,3);
               end
               
               distances(a, b, i) = distances(a, b, i) / 50;
-              cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.5 + abs(distances(a, b, i) - 1)*0.5; 
+              cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.75 + abs(distances(a, b, i) - 1)*0.25; 
          end
 
      end
@@ -118,8 +121,8 @@ bg_gray = median(imgseq1.rgb,3);
  assignin('base', 'distances', distances);
  assignin('base', 'areas', areas);
  assignin('base', 'id', id);
- assignin('base','measurements', measurements);
  assignin('base','cost_function', cost_function);
+ assignin('base','connected_components', connected_components);
 
  
  %% check for movement
@@ -132,7 +135,7 @@ bg_gray = median(imgseq1.rgb,3);
     for a=1:length(assignment)
         if(assignment(a)~=0)
             costs = cost_function(a,assignment(a),i);
-            if(costs > 0.7)
+            if(costs > 3)
                 objects(a, i) = false;
             else
                 objects(a, i) = assignment(a);
@@ -151,8 +154,8 @@ bg_gray = median(imgseq1.rgb,3);
       for a = 1:size(objects, 1) % linhas
               if(objects(a, b) ~= 0) % if an object is found
                   while_finished = false;
-                  b
-                  x = objects(a, b)
+                  b;
+                  x = objects(a, b);
                   %objects(:, b - 1)';
                   %I want to find if, in the matrix objects, the line of
                   %the current object is an entry from the last column
@@ -163,15 +166,15 @@ bg_gray = median(imgseq1.rgb,3);
                           for j = 1:size(objects,1) %go through every line of the matrix
                              if(z == b - 1) %for finding the "most recent previous"
                                  if(objects(j, z) == a) %if there is an object that has the value of line of the next object
-                                     previous_object = objects(j, z)
+                                     previous_object = objects(j, z);
                                      break;
                                  end
                              else
                                 %previous_object
                                  find(objects(:, z + 1) == previous_object);
-                                 linez = find(objects(:, z + 1) == previous_object)
+                                 linez = find(objects(:, z + 1) == previous_object);
                                  if(moving_objects(j, z) == linez)
-                                     previous_object = moving_objects(j, z)
+                                     previous_object = moving_objects(j, z);
                                      break;
                                  else
                                      while_finished = true;
@@ -181,7 +184,7 @@ bg_gray = median(imgseq1.rgb,3);
                                  
                              end
                           end
-                          z
+                          z;
 %                           if( not(isempty(find(linhas(:) == previous_object))) && z == frames(find(linhas(:) == previous_object)))
 %                               previous_object;
 %                               linhas(previous_object);
@@ -238,9 +241,54 @@ bg_gray = median(imgseq1.rgb,3);
    assignin('base', 'linhas', linhas);
    assignin('base','moving_objects', moving_objects);  
 
-
-
-
+   
+   for i = 2:nr_frames
+           figure(1);
+           imagesc(bwlabel(imgdiffiltered(:,:,i)));
+       for a = 1:size(moving_objects,1)       
+           if moving_objects(a, i) ~= 0
+            rectangle('Position', measurements(i).boxes(moving_objects(a, i)).BoundingBox, 'EdgeColor', 'cyan');
+            
+            left =round( measurements(i).boxes(moving_objects(a, i)).BoundingBox(1));
+            top = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(2));
+            width = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(3));
+            height = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(4));
+            if(top + height > 480) 
+                height = height - 1;
+            end
+            if(left + width > 640) 
+                width = width - 1;
+            end
+            
+            
+            
+            for j = top:top + height
+                for k = left:left + width
+                    if(imgseq1.depth(j, k, i) > 0)
+                        depth = imgseq1.depth(j,k,i);
+                        if(j == top && k == left)
+                            min_depth = depth;
+                            max_depth = depth;
+                        end
+                        if (depth < min_depth)
+                            min_depth = depth;
+                        end
+                        if (depth > max_depth)
+                            max_depth = depth;
+                        end
+                    end
+                end
+            end
+            %guardar
+            measurements(i).depths(a, :) = [min_depth max_depth];
+            
+           end
+       end
+pause;
+       
+   end
+   
+ assignin('base','measurements', measurements);
 
 end
 
