@@ -1,14 +1,19 @@
-function [] = track3D_part1(imgseq1, cam_params)
+function [objects] = track3D_part1(imgseq1, cam_params)
 
 R = cam_params.R;
 T = cam_params.T;
-
+load('CalibrationData.mat');
 
 %% Perform background subtraction and apply the camera-to-world tranformation and the camera intrinsic parameters
-nr_frames = size(imgseq1.rgb,3);
-
-bg_depth = median(imgseq1.depth,3);
-bg_gray = median(imgseq1.rgb,3);
+nr_frames = size(imgseq1,2);
+for i = 1:nr_frames
+    
+   imgs(:, :, i) = rgb2gray(imgseq1(i).rgb);
+   imgsd(:, :, i) = double(imgseq1(i).depth)/1000;
+    
+end
+bg_depth = median(imgsd,3);
+bg_gray = median(imgs,3);
 % figure(10);
 % subplot(211);imagesc(bg_depth);
 % subplot(212);imagesc(bg_gray);
@@ -16,8 +21,16 @@ bg_gray = median(imgseq1.rgb,3);
 % figure(1);clf;
 % figure(2);clf;
  for i=1:nr_frames
-     imdiff = imgseq1.depth(:,:,i) > 0 & abs(imgseq1.depth(:,:,i) - bg_depth)>.20;
-     imgdiffiltered(:,:,i) = imopen(imdiff,strel('disk',5));
+     imdiff = imgsd(:, :, i) > 0 & imgsd(:, :, i) < 5 & abs(imgsd(:, :, i) - bg_depth)>.20;
+     imgdiffiltered(:, :, i) = imopen(imdiff,strel('disk',5));
+     [Gmag, Gdir] = imgradient(imgsd(:, :, i));
+     for a = 1:size(Gmag,1)
+        for b = 1:size(Gmag,2)
+           if(Gmag(a, b) > 0.5)
+               imgdiffiltered(a, b, i) = 0;
+           end
+        end   
+     end
      %figure(1);
     % imagesc([imdiff imgdiffiltered]);
      %title('Difference image and morph filtered');
@@ -26,15 +39,15 @@ bg_gray = median(imgseq1.rgb,3);
      %imagesc([imgseq1.depth(:,:,i) bg_depth]);
      %title('Depth image i and background image');
      %figure(3);
-     connected_components(:,:,i) = bwlabel(imgdiffiltered(:,:,i));
-     s = regionprops(connected_components(:,:,i), 'centroid');
-     a = regionprops(connected_components(:,:,i), 'area');
-     b = regionprops(connected_components(:,:,i), 'BoundingBox');
+     connected_components(:, :, i) = bwlabel(imgdiffiltered(:, :, i));
+     s = regionprops(connected_components(:, :, i), 'centroid');
+     a = regionprops(connected_components(:, :, i), 'area');
+     b = regionprops(connected_components(:, :, i), 'BoundingBox');
       
-%      figure(i);
-%      imagesc(bwlabel(imgdiffiltered(:,:,i)));
-%      title('Connected components');
-
+     figure(1);
+     imagesc(bwlabel(imgdiffiltered(:, :, i)));
+     title('Connected components');
+     for k = 
 
 %      if (i == 5)
 %      figure(i)
@@ -71,7 +84,7 @@ bg_gray = median(imgseq1.rgb,3);
             text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
             measurements(i).centroids(k,3) = k;
         end
-        %pause;
+     pause(0.1);
      %end
      %hold on
      %plot(centroids(:,1), centroids(:, 2), 'b*');
@@ -108,8 +121,7 @@ bg_gray = median(imgseq1.rgb,3);
          for b=1:size(distances, 1)            
               if(areas(a, b, i) == 0)
                   areas(a, b, i) = NaN;
-              end
-              
+              end              
               distances(a, b, i) = distances(a, b, i) / 50;
               cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.75 + abs(distances(a, b, i) - 1)*0.25; 
          end
@@ -136,9 +148,9 @@ bg_gray = median(imgseq1.rgb,3);
         if(assignment(a)~=0)
             costs = cost_function(a,assignment(a),i);
             if(costs > 3)
-                objects(a, i) = false;
+                objetos(a, i) = false;
             else
-                objects(a, i) = assignment(a);
+                objetos(a, i) = assignment(a);
             end
         end
         
@@ -147,32 +159,32 @@ bg_gray = median(imgseq1.rgb,3);
  end
  
 
-  assignin('base','objects', objects);
-  moving_objects = zeros(size(objects, 1),size(objects, 2)); 
+  assignin('base','objetos', objetos);
+  moving_objects = zeros(size(objetos, 1),size(objetos, 2)); 
   linhas = zeros(size(moving_objects,1),1);
-  for b = 1:size(objects, 2) % colunas
-      for a = 1:size(objects, 1) % linhas
-              if(objects(a, b) ~= 0) % if an object is found
+  for b = 1:size(objetos, 2) % colunas
+      for a = 1:size(objetos, 1) % linhas
+              if(objetos(a, b) ~= 0) % if an object is found
                   while_finished = false;
                   b;
-                  x = objects(a, b);
+                  x = objetos(a, b);
                   %objects(:, b - 1)';
                   %I want to find if, in the matrix objects, the line of
                   %the current object is an entry from the last column
                   %the line is given by find(objects(:, b) == x);
-                  if(find(objects(:, b - 1) == a)) %check if there is a previous object
+                  if(find(objetos(:, b - 1) == a)) %check if there is a previous object
                       z = b - 1; %column where that previous object is
                      while not(while_finished) % while we haven't found the "first previous"                    
-                          for j = 1:size(objects,1) %go through every line of the matrix
+                          for j = 1:size(objetos,1) %go through every line of the matrix
                              if(z == b - 1) %for finding the "most recent previous"
-                                 if(objects(j, z) == a) %if there is an object that has the value of line of the next object
-                                     previous_object = objects(j, z);
+                                 if(objetos(j, z) == a) %if there is an object that has the value of line of the next object
+                                     previous_object = objetos(j, z);
                                      break;
                                  end
                              else
                                 %previous_object
-                                 find(objects(:, z + 1) == previous_object);
-                                 linez = find(objects(:, z + 1) == previous_object);
+                                 find(objetos(:, z + 1) == previous_object);
+                                 linez = find(objetos(:, z + 1) == previous_object);
                                  if(moving_objects(j, z) == linez)
                                      previous_object = moving_objects(j, z);
                                      break;
@@ -193,9 +205,10 @@ bg_gray = median(imgseq1.rgb,3);
 %                           end
                          % if(previous
                           z = z - 1;
-                          if(z == 0)                             
-                              break;
+                          if(z == 0)    
                               while_finished = true;
+                              break;
+
                           end
                      end
                           %só quero que corra isto quando chegar ao "first
@@ -208,9 +221,9 @@ bg_gray = median(imgseq1.rgb,3);
                      end
 
                       %object_line = objects(:, b - 1) == find(objects(:, b) == x);
-                      for j=1:size(objects, 1)                          
-                          if(objects(j, b - 1) == a)
-                              y = objects(j, b - 1);
+                      for j=1:size(objetos, 1)                          
+                          if(objetos(j, b - 1) == a)
+                              y = objetos(j, b - 1);
                               %moving_objects(a, b) = objects(a,b);
                           end 
                       end
@@ -222,10 +235,10 @@ bg_gray = median(imgseq1.rgb,3);
                          end
                       end
                        %line = find(moving_objects() == 0,1);
-                       x = objects(a, b);
-                       if(objects(x, b + 1) ~= 0)
-                           moving_objects(lineeee, b) = objects(a, b);
-                           linhas(lineeee) = objects(a, b);
+                       x = objetos(a, b);
+                       if(objetos(x, b + 1) ~= 0)
+                           moving_objects(lineeee, b) = objetos(a, b);
+                           linhas(lineeee) = objetos(a, b);
                            frames(lineeee) = b;
                        end
                   end
@@ -236,59 +249,134 @@ bg_gray = median(imgseq1.rgb,3);
       end
                       
   end
+  
+   for a = 1:size(moving_objects,1)
+       j = 1;
+       for b = 1:size(moving_objects,2)
+           if(moving_objects(a, b) ~= 0)
+               objects(a).frames_tracked(j) = b;
+               j = j + 1;
+           end
+
+       end
+   end
    %assignin('base','frames_first_object', frames_first_object); 
    assignin('base', 'frames', frames);
    assignin('base', 'linhas', linhas);
-   assignin('base','moving_objects', moving_objects);  
+   assignin('base','moving_objects', moving_objects);
+   
 
    
    for i = 2:nr_frames
-           figure(1);
-           imagesc(bwlabel(imgdiffiltered(:,:,i)));
-       for a = 1:size(moving_objects,1)       
-           if moving_objects(a, i) ~= 0
-            rectangle('Position', measurements(i).boxes(moving_objects(a, i)).BoundingBox, 'EdgeColor', 'cyan');
+       
+       for a = 1:size(moving_objects,1)
+           
+           if (moving_objects(a, i) ~= 0)
+               
+               z = uint16(imgseq1(i).depth);
+               xyz1=get_xyz_asus(z(:),[480 640],(1:640*480)', cam_params.Kdepth,1,0);
+               l = uint8(imgseq1(i).rgb);
+               rgbd1 = get_rgbd(xyz1, l, R_d_to_rgb, T_d_to_rgb, cam_params.Krgb);
+               figure(99);imagesc(rgbd1);
+               pc1=pointCloud(xyz1,'Color',reshape(rgbd1,[480*640 3]));
+               figure(100); showPointCloud(pc1);
+               view(0, -85);
+               zoom(2);
+               
+               
+               
+            %rectangle('Position', measurements(i).boxes(moving_objects(a, i)).BoundingBox, 'EdgeColor', 'cyan');
             
-            left =round( measurements(i).boxes(moving_objects(a, i)).BoundingBox(1));
-            top = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(2));
-            width = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(3));
-            height = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(4));
-            if(top + height > 480) 
-                height = height - 1;
-            end
-            if(left + width > 640) 
-                width = width - 1;
-            end
+            %left = round( measurements(i).boxes(moving_objects(a, i)).BoundingBox(1));
+            %bottom = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(2));
+            %width = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(3));
+            %height = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(4));
             
+%             bottom_left_x = left;
+%             bottom_left_y = bottom;
+%             bottom_right_x = left + width;
+%             bottom_right_y = bottom;
+%             up_left_x = left;
+%             up_left_y = bottom + height;
+%             up_right_x = left + width;
+%             up_right_y = bottom + height;
+%             
+%             K_inv = inv(cam_params.Krgb);
+%             
+%             x_bottom_left_m = K_inv(1,1)*bottom_left_x + K_inv(1,3);
+%             y_bottom_left_m = K_inv(2,2)*bottom_left_y + K_inv(2,3);
+%             
+%             x_bottom_right_m = K_inv(1,1)*bottom_right_x + K_inv(1,3);
+%             y_bottom_right_m = K_inv(2,2)*bottom_right_y + K_inv(2,3);
+%             
+%             x_up_left_m = K_inv(1,1)*up_left_x + K_inv(1,3);
+%             y_up_left_m = K_inv(2,2)*up_left_y + K_inv(2,3);
+%             
+%             x_up_right_m = K_inv(1,1)*up_right_x + K_inv(1,3);
+%             y_up_right_m = K_inv(2,2)*up_right_y + K_inv(2,3);
             
-            
-            for j = top:top + height
-                for k = left:left + width
-                    if(imgseq1.depth(j, k, i) > 0)
-                        depth = imgseq1.depth(j,k,i);
-                        if(j == top && k == left)
-                            min_depth = depth;
-                            max_depth = depth;
-                        end
-                        if (depth < min_depth)
-                            min_depth = depth;
-                        end
-                        if (depth > max_depth)
-                            max_depth = depth;
-                        end
-                    end
-                end
-            end
-            %guardar
-            measurements(i).depths(a, :) = [min_depth max_depth];
-            
+            %[x, y] = inv(cam_params.Krgb)*[bottom_left_x; bottom_left_y; 1]
+%                 if(bottom + height > 480) 
+%                     height = height - 1;
+%                 end
+%                 if(left + width > 640) 
+%                     width = width - 1;
+%                 end
+%                 first = true;
+%                 
+%                 for j = bottom:bottom + height
+%                     for k = left:left + width
+%                         if(imgsd(j, k, i) > 0)
+%                             if(connected_components(j ,k ,i) == moving_objects(a, i))
+%                                 depth = imgsd(j, k, i);
+%                                 if(depth < 5)
+%                                     if(first)
+%                                         min_depth = depth;
+%                                         max_depth = depth;
+%                                         first = false;
+%                                     end
+%                                     if (depth < min_depth)
+%                                         min_depth = depth;
+%                                     end
+%                                     if (depth > max_depth)
+%                                         max_depth = depth;
+%                                     end
+%                                 end
+%                             end
+%                         end
+%                     end
+%                 end
+                %os pontos estão a ser guardados de baixo para cima
+                %começando no canto inferior esquerdo (visto de cima) e
+                %percorre-se no sentido dos ponteiros do relógio
+                
+                
+                
+%                 if(find(objects(a).frames_tracked == i))
+%                  objects(a).X(i, :) = [x_bottom_left_m x_bottom_left_m x_bottom_right_m x_bottom_right_m x_bottom_left_m x_bottom_left_m x_bottom_right_m x_bottom_right_m];
+%                  objects(a).Y(i, :) = [y_bottom_left_m y_bottom_left_m y_bottom_left_m y_bottom_left_m y_up_left_m y_up_left_m y_up_left_m y_up_left_m];
+%                  objects(a).Z(i, :) = [min_depth max_depth max_depth min_depth min_depth max_depth max_depth min_depth];
+%                 end
+%                  measurements(i).depths(a, :) = [min_depth max_depth];
+                          
            end
        end
-pause;
+   %pause
        
    end
    
- assignin('base','measurements', measurements);
 
+%Remove lines with zeros
+    for a = 1:size(objects, 2)
+       for b = size(objects(a).X, 1):-1:1
+          if(~all(objects(a).X(b,:)))
+             objects(a).X(b,:) = [];
+             objects(a).Y(b,:) = [];
+             objects(a).Z(b,:) = [];
+          end
+       end
+    end
+
+ assignin('base','measurements', measurements);
 end
 

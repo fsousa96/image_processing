@@ -1,5 +1,6 @@
 %%
-% READ IMAGES and GENERATE POINT CLOUDS
+% READ IMAGES and GENERATE POINT CLOUD
+load('CalibrationData.mat');
 im1=imread('images00000038.jpg');
 im2=imread('images00000037.jpg');
 load('images00000038.mat')
@@ -13,7 +14,7 @@ xyz2=get_xyz_asus(dep2(:),[480 640],(1:640*480)', cam_params.Kdepth,1,0);
 rgbd1 = get_rgbd(xyz1, im1, R_d_to_rgb, T_d_to_rgb, cam_params.Krgb);
 rgbd2 = get_rgbd(xyz2, im2, R_d_to_rgb, T_d_to_rgb, cam_params.Krgb);
 %%
-figure(1);imagesc(rgbd1 );
+figure(1);imagesc(rgbd1);
 figure(2);imagesc(rgbd2 );
 pc1=pointCloud(xyz1,'Color',reshape(rgbd1,[480*640 3]));
 pc2=pointCloud(xyz2,'Color',reshape(rgbd2,[480*640 3]));
