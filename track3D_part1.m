@@ -9,7 +9,7 @@ nr_frames = size(imgseq1,2);
 for i = 1:nr_frames
     
    imgs(:, :, i) = rgb2gray(imgseq1(i).rgb);
-   imgsd(:, :, i) = double(imgseq1(i).depth)/1000;
+   imgsd(:, :, i) = double(imgseq1(i).depth)/1000; %em metros
     
 end
 bg_depth = median(imgsd,3);
@@ -18,12 +18,14 @@ bg_gray = median(imgs,3);
 % subplot(211);imagesc(bg_depth);
 % subplot(212);imagesc(bg_gray);
 
+
 % figure(1);clf;
 % figure(2);clf;
  for i=1:nr_frames
      imdiff = imgsd(:, :, i) > 0 & imgsd(:, :, i) < 5 & abs(imgsd(:, :, i) - bg_depth)>.20;
      imgdiffiltered(:, :, i) = imopen(imdiff,strel('disk',5));
      [Gmag, Gdir] = imgradient(imgsd(:, :, i));
+     
      for a = 1:size(Gmag,1)
         for b = 1:size(Gmag,2)
            if(Gmag(a, b) > 0.5)
@@ -31,6 +33,7 @@ bg_gray = median(imgs,3);
            end
         end   
      end
+     
      %figure(1);
     % imagesc([imdiff imgdiffiltered]);
      %title('Difference image and morph filtered');
@@ -44,16 +47,47 @@ bg_gray = median(imgs,3);
      a = regionprops(connected_components(:, :, i), 'area');
      b = regionprops(connected_components(:, :, i), 'BoundingBox');
       
-     figure(i);
+     figure(9);
      imagesc(bwlabel(imgdiffiltered(:, :, i)));
      title('Connected components');
-%      for k = 1:size(a,1)
-%         if(a(k).Area < 300)
-%             connected_components( , ,i)
-%             
-%         end
-%      end
+     for k = 1:size(a,1)
+        if(a(k).Area < 300)
+           %[values, arg] = min(a(k).Area);
+           %x = find(connected_components(:,:,i)  
+            [x,y] = find(connected_components(:,:,i) == k);
+            connected_components(x,y,i) = 0;
+        end
+        %connected_components(:, :, i).area = a(k).Area;      
+     end
+     %connected_components(:,:,i) = bwlabel(connected_components(:,:,i));
+     s = regionprops(connected_components(:, :, i), 'centroid');
+     a = regionprops(connected_components(:, :, i), 'area');
+     b = regionprops(connected_components(:, :, i), 'BoundingBox');
+%      figure(1);
+%      imagesc(connected_components(:,:,i));
+%      title(num2str(i));
+     
+     for k=1:size(s,1) % for every region 
+       centroid = s(k).Centroid;
+       area = a(k).Area;
 
+     end
+     
+     centroids = [s.Centroid];
+     areas = [a.Area];
+     centroidX = centroids(1:2:end-1);
+     centroidY = centroids(2:2:end);
+     measurements(i).areas = areas';
+     measurements(i).centroids = [centroidX' centroidY'];
+     %measurements(i).ids = id;
+     measurements(i).boxes = b;
+
+     for k=1:size(s,1)
+         text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
+         measurements(i).centroids(k,3) = k;
+     end
+     %pause;
+     
 %      if (i == 5)
 %      figure(i)
 %      imagesc(bwlabel(imgdiffiltered(:,:,i)));
@@ -67,29 +101,15 @@ bg_gray = median(imgs,3);
 %      end
      
      
-     for k=1:size(s,1) % for every region 
-         centroid = s(k).Centroid;
-         area = a(k).Area;
-         id(k) = k;
-         %bounding_box(k) = b(k).BoundingBox;
-     end
-     
-     centroids = [s.Centroid];
-     areas = [a.Area];
 
-     centroidX = centroids(1:2:end-1);
-     centroidY = centroids(2:2:end);
-     measurements(i).areas = areas';
-     measurements(i).centroids = [centroidX' centroidY'];
-     measurements(i).ids = id;
-     measurements(i).boxes = b;
+     
+
+
+
      
      %if(i == 5 || i == 4)
-        for k=1:size(s,1)
-            text(centroidX(k), centroidY(k), num2str(k), 'FontSize', 14, 'FontWeight', 'Bold'); 
-            measurements(i).centroids(k,3) = k;
-        end
-     pause;
+
+     %pause;
      %end
      %hold on
      %plot(centroids(:,1), centroids(:, 2), 'b*');
@@ -106,38 +126,40 @@ bg_gray = median(imgs,3);
         for a=1:size(measurements(i).centroids,1)
             for b=1:size(measurements(i-1).centroids,1)
              X = [measurements(i).centroids(a, 1),measurements(i).centroids(a, 2); measurements(i-1).centroids(b, 1), measurements(i-1).centroids(b, 2)];
-             distances(a, b, i) = pdist(X, 'euclidean');
-%             abs(measurements(i).areas(a) - measurements(i-1).areas(b))
+             distances(a, b, i) = pdist(X, 'euclidean');            
+             depths(a, b, i) = imgsd(a, b, i); 
+%            abs(measurements(i).areas(a) - measurements(i-1).areas(b))
                if(measurements(i).areas(a) > 400 && measurements(i-1).areas(b) > 400)
                 areas(a, b, i) = abs(measurements(i).areas(a)/measurements(i-1).areas(b));
                else
                    areas(a, b, i) = NaN;
-               end
+               end              
             end
-            [value, arg] = min(distances(a, :, i));
-            id(a) = arg;%returns the index of the closest centroid of the previous frame
-            measurements(i).centroids(a,3) = id(a);
-            
+            %[value, arg] = min(distances(a, :, i));
+            %id(a) = arg;%returns the index of the closest centroid of the previous frame           
         end
-               
+
  end
+ 
  for i=1:size(distances, 3)
      for a=1:size(distances, 2)
          for b=1:size(distances, 1)            
               if(areas(a, b, i) == 0)
                   areas(a, b, i) = NaN;
-              end              
+              end
+              if(imgsd(a, b, i) > 0 && imgsd(a, b, i) < 5)
+                  depths(a, b, i) = NaN;
+              end
               distances(a, b, i) = distances(a, b, i) / 50;
-              cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.75 + abs(distances(a, b, i) - 1)*0.25; 
+              depths(a, b, i) = depths(a, b, i) / 25;
+              cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.2 + abs(distances(a, b, i) - 1)*0.2 + abs(depths(a, b, i) - 1) *0.6; 
          end
-
      end
-      cost_function(:,:,i) = cost_function(:,:,i).';
+      %cost_function(:,:,i) = cost_function(:,:,i).';
  end
 
  assignin('base', 'distances', distances);
  assignin('base', 'areas', areas);
- assignin('base', 'id', id);
  assignin('base','cost_function', cost_function);
  assignin('base','connected_components', connected_components);
 
@@ -152,11 +174,8 @@ bg_gray = median(imgs,3);
     for a=1:length(assignment)
         if(assignment(a)~=0)
             costs = cost_function(a,assignment(a),i);
-            if(costs > 3)
-                objetos(a, i) = false;
-            else
-                objetos(a, i) = assignment(a);
-            end
+            objetos(a, i) = assignment(a);
+
         end
         
     end
@@ -171,9 +190,7 @@ bg_gray = median(imgs,3);
       for a = 1:size(objetos, 1) % linhas
               if(objetos(a, b) ~= 0) % if an object is found
                   while_finished = false;
-                  b;
                   x = objetos(a, b);
-                  %objects(:, b - 1)';
                   %I want to find if, in the matrix objects, the line of
                   %the current object is an entry from the last column
                   %the line is given by find(objects(:, b) == x);
@@ -187,7 +204,7 @@ bg_gray = median(imgs,3);
                                      break;
                                  end
                              else
-                                %previous_object
+                                 %previous_object
                                  find(objetos(:, z + 1) == previous_object);
                                  linez = find(objetos(:, z + 1) == previous_object);
                                  if(moving_objects(j, z) == linez)
@@ -201,7 +218,6 @@ bg_gray = median(imgs,3);
                                  
                              end
                           end
-                          z;
 %                           if( not(isempty(find(linhas(:) == previous_object))) && z == frames(find(linhas(:) == previous_object)))
 %                               previous_object;
 %                               linhas(previous_object);
@@ -216,9 +232,6 @@ bg_gray = median(imgs,3);
 
                           end
                      end
-                          %só quero que corra isto quando chegar ao "first
-                          %previous"
-                          %previous_object
                      if(while_finished)
                           previous_object;
                           linhas(previous_object);
@@ -265,6 +278,16 @@ bg_gray = median(imgs,3);
 
        end
    end
+  
+   %Remove lines with zeros
+    for a = 1:size(moving_objects, 2)
+       for b = size(moving_objects, 1):-1:1
+          if(~any(moving_objects(b,:)))
+             moving_objects(b,:) = [];
+          end
+       end
+    end
+   
    %assignin('base','frames_first_object', frames_first_object); 
    assignin('base', 'frames', frames);
    assignin('base', 'linhas', linhas);
@@ -278,20 +301,21 @@ bg_gray = median(imgs,3);
            
            if (moving_objects(a, i) ~= 0)
                
-               z = uint16(imgseq1(i).depth);
-               xyz1=get_xyz_asus(z(:),[480 640],(1:640*480)', cam_params.Kdepth,1,0);
-               l = uint8(imgseq1(i).rgb);
-               rgbd1 = get_rgbd(xyz1, l, R_d_to_rgb, T_d_to_rgb, cam_params.Krgb);
-               figure(99);imagesc(rgbd1);
-               pc1=pointCloud(xyz1,'Color',reshape(rgbd1,[480*640 3]));
-               figure(100); showPointCloud(pc1);
-               view(0, -85);
-               zoom(2);
+%                z = uint16(imgseq1(i).depth);
+%                xyz1=get_xyz_asus(z(:),[480 640],(1:640*480)', cam_params.Kdepth,1,0);
+%                l = uint8(imgseq1(i).rgb);
+%                rgbd1 = get_rgbd(xyz1, l, R_d_to_rgb, T_d_to_rgb, cam_params.Krgb);
+%                figure(99);imagesc(rgbd1);
+%                pc1=pointCloud(xyz1,'Color',reshape(rgbd1,[480*640 3]));
+%                figure(100); showPointCloud(pc1);
+%                view(0, -85);
+%                zoom(2);
                
                
-               
-            %rectangle('Position', measurements(i).boxes(moving_objects(a, i)).BoundingBox, 'EdgeColor', 'cyan');
-            
+            %figure(i);
+            imagesc(connected_components(:,:,i));
+            rectangle('Position', measurements(i).boxes(moving_objects(a, i)).BoundingBox, 'EdgeColor', 'cyan');
+
             %left = round( measurements(i).boxes(moving_objects(a, i)).BoundingBox(1));
             %bottom = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(2));
             %width = round(measurements(i).boxes(moving_objects(a, i)).BoundingBox(3));
@@ -365,6 +389,7 @@ bg_gray = median(imgs,3);
 %                  measurements(i).depths(a, :) = [min_depth max_depth];
                           
            end
+
        end
    %pause
        
@@ -372,15 +397,15 @@ bg_gray = median(imgs,3);
    
 
 %Remove lines with zeros
-    for a = 1:size(objects, 2)
-       for b = size(objects(a).X, 1):-1:1
-          if(~all(objects(a).X(b,:)))
-             objects(a).X(b,:) = [];
-             objects(a).Y(b,:) = [];
-             objects(a).Z(b,:) = [];
-          end
-       end
-    end
+%     for a = 1:size(objects, 2)
+%        for b = size(objects(a).X, 1):-1:1
+%           if(~any(objects(a).X(b,:)))
+%              objects(a).X(b,:) = [];
+%              objects(a).Y(b,:) = [];
+%              objects(a).Z(b,:) = [];
+%           end
+%        end
+%     end
 
  assignin('base','measurements', measurements);
 end

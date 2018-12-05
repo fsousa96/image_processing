@@ -11,7 +11,7 @@ mat1 = dir(fullfile(D, 'images*.mat'));
 % d = dir('images*.jpg');
 % dd = dir('images*.mat');
 
-% a = zeros(480,640,length(d));
+% a = zeros(480,640,len7gth(d));
 % b = zeros(480, 640, length(d));
 for i=1:numel(jpg1)    
     name1 = fullfile(D, jpg1(i).name);  
