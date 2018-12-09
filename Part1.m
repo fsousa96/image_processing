@@ -27,4 +27,4 @@ for i=1:numel(jpg1)
 %     pause(0.1);
 end
 
-objects = track3D_part1(imgseq1, cam_params);
+ track3D_part1(imgseq1, cam_params);

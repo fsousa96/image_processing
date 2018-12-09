@@ -1,4 +1,4 @@
-function rgbd = get_rgbd(xyz, rgb, R, T, K_rgb)
+function rgbd = get_rgbd(xyz, rgb, R, T, K_rgb, lines, columns)
 
 Kx = K_rgb(1,1);
 Cx = K_rgb(1,3);
@@ -26,7 +26,7 @@ u(u < 1) = 1;
 rgb_inds = sub2ind(rgb_size, v, u);
 
 rgbd = zeros(n_pixels,3);
-rgb_aux = reshape(rgb,480*640,3);
+rgb_aux = reshape(rgb,lines*columns,3);
 
 rgbd((1:n_pixels)',:) = rgb_aux(rgb_inds,:);
 
