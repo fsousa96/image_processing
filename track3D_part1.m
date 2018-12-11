@@ -50,7 +50,7 @@ bg_gray = median(imgs,3);
 
 
      for k = 1:size(a,1)
-        if(a(k).Area < 500)
+        if(a(k).Area < 400)
            %[values, arg] = min(a(k).Area);
            %x = find(connected_components(:,:,i)  
             [x,y] = find(connected_components(:,:,i) == k);
@@ -244,10 +244,11 @@ bg_gray = median(imgs,3);
             distanceZ(a, b, i) = norm(measurements(i).boxes(a).Z - measurements(i-1).boxes(b).Z);
             sum = 0;
             for x = 1:8
-                dist = norm([measurements(i).boxes(a).X(x) measurements(i).boxes(a).Y(x) measurements(i).boxes(a).Z(x)] - [measurements(i-1).boxes(b).X(x) measurements(i-1).boxes(b).Y(x) measurements(i-1).boxes(b).Z(x)]);
+                dist = norm([measurements(i).boxes(a).X(x) measurements(i).boxes(a).Y(x) measurements(i).boxes(a).Z(x)] ...
+                    - [measurements(i-1).boxes(b).X(x) measurements(i-1).boxes(b).Y(x) measurements(i-1).boxes(b).Z(x)]);
                 sum = sum + dist;
             end
-            distances(a, b, i) = sum/8;
+            distances(a, b, i) = sum / 8;
             % if(measurements(i).areas(a) > 400 && measurements(i-1).areas(b) > 400)
             areas(a, b, i) = abs(measurements(i).areas(a)/measurements(i-1).areas(b));
                %else
@@ -267,7 +268,9 @@ bg_gray = median(imgs,3);
               if(areas(a, b, i) == 0)
                   areas(a, b, i) = NaN;
               end
-
+              if(distances(a, b, i) > 0.5)
+                  distances(a, b, i) = NaN;
+              end
               %distances(a, b, i) = distances(a, b, i) / 50;
               %depths(a, b, i) = depths(a, b, i) / 25;
               cost_function(a, b, i) = abs(areas(a, b, i) - 1)*0.1 + distances(a, b, i)*0.9 ; 
@@ -414,6 +417,9 @@ bg_gray = median(imgs,3);
                       % disp('chegou ao fim');
                        linha = find(first_objects(:, z) == previous_object);
                        moving_objects(linha, b) = objetos(a, b);
+%                        objects(a).X(b,:) = measurements(a).boxes(b).X;
+%                        objects(a).Y(b,:) = measurements(a).boxes(b).Y;
+%                        objects(a).Z(b,:) = measurements(a).boxes(b).Z;
                        %por na matriz moving_objects
                  else
                     for j = z-1:-1:2
@@ -429,6 +435,9 @@ bg_gray = median(imgs,3);
                            % disp('chegou ao fim');
                             linha = find(first_objects(:, j) == previous_object);
                             moving_objects(linha, b) = objetos(a, b);
+%                             objects(a).X(b,:) = measurements(a).boxes(b).X;
+%                             objects(a).Y(b,:) = measurements(a).boxes(b).Y;
+%                             objects(a).Z(b,:) = measurements(a).boxes(b).Z;
                             %por na matriz moving_objects
                        
                             break;
@@ -441,16 +450,63 @@ bg_gray = median(imgs,3);
                 %Preciso de verificar se este objeto já apareceu
                 %como é que posso obter as características deste objeto
                 %(área e posição)
-                centroid = measurements(a).centroids(:, find(measurements(a).centroids(:,3) == objetos(a ,b)));
+                %centroid = measurements(a).centroids(:, find(measurements(a).centroids(:,3) == objetos(a ,b)));
                 y = y + 1;
                 first_objects(y, b) = objetos(a, b);
                 moving_objects(y, b) = objetos(a, b);
-               
+%                 objects(a).X(b,:) = measurements(a).boxes(b).X;
+%                 objects(a).Y(b,:) = measurements(a).boxes(b).Y;
+%                 objects(a).Z(b,:) = measurements(a).boxes(b).Z;
+                
             end           
         end         
      end
   end
+  
+  for a = 1:size(moving_objects,1)
+       j = 1;
+       for b = 1:size(moving_objects,2)
+           if(moving_objects(a, b) ~= 0)
+               objects(a).frames_tracked(j) = b;
+               j = j + 1;
+           end
+
+       end
+  end
+   
+  for b = 2:nr_frames      
+      for a = 1:size(moving_objects,1);
+          if(moving_objects(a, b) ~= 0)
+              
+               if(find(objects(a).frames_tracked == b))
+                 objects(a).X(b, :) = measurements(b).boxes(find(measurements(b).centroids(:,3) == moving_objects(a, b))).X;
+                 objects(a).Y(b, :) = measurements(b).boxes(find(measurements(b).centroids(:,3) == moving_objects(a, b))).Y;
+                 objects(a).Z(b, :) = measurements(b).boxes(find(measurements(b).centroids(:,3) == moving_objects(a, b))).Z;
+               end
+          end          
+          
+      end
+  end
+  
+
+ %Remove lines with zeros
+    for a = 1:size(objects, 2)
+       for b = size(objects(a).X, 1):-1:1
+          if(~any(objects(a).X(b,:)))
+             objects(a).X(b,:) = [];
+             objects(a).Y(b,:) = [];
+             objects(a).Z(b,:) = [];
+          end
+       end
+    end
+   %size(objects,1) 
+    for a = size(objects, 2)
+       if(length(objects(a).frames_tracked) == 1)
+            objects(a) = [];
+       end
+    end
       assignin('base','moving_objects', moving_objects);
+     % assignin('base','objects', objects);
   
   
   %%
@@ -459,102 +515,6 @@ bg_gray = median(imgs,3);
   
   
   
-% for b = 1:size(objetos, 2) % colunas
-%       for a = 1:size(objetos, 1) % linhas
-%               if(objetos(a, b) ~= 0) % if an object is found
-%                   while_finished = false;
-%                   flag = false;
-%                   x = objetos(a, b)
-%                   b
-%                   %I want to find if, in the matrix objects, the line of
-%                   %the current object is an entry from the last column
-%                   %the line is given by find(objects(:, b) == x);
-%                   if(find(objetos(:, b - 1) == a)) %check if there is a previous object
-%                       z = b - 1 %column where that previous object is
-%                      while (not(while_finished)) % while we haven't found the "first previous"
-%                          
-%                              if(z == b - 1) %for finding the "most recent previous"
-%                                   for j = 1:size(objetos,1) %go through every line of the matrix
-%                                     if(objetos(j, z) == a) %if there is an object that has the value of line of the next object
-%                                         previous_object = objetos(j, z);
-%                                      break;
-%                                 	end
-%                                   end
-%                              else
-%                                  z + 1;
-%                                  previous_object
-%                                  j
-%                                  z
-%                                  moving_objects(j, z)
-%                                  find(objetos(:, z + 1) == previous_object)
-%                                  linez = find(objetos(:, z + 1) == previous_object)
-%                                  if(moving_objects(j, z) == linez)
-%                                      previous_object = moving_objects(j, z)
-%                                      break;
-%                                  else
-%                                      while_finished = true;
-%                                      flag = true;
-%                                      z
-%                                      break;
-%                                  end                                
-%                              
-%                           end
-%                           if(flag)
-%                               break;
-%                           end
-%                           
-%                           if(z - 1 ~= 0) 
-%                               z = z - 1;
-%                               
-%                           else
-%                               while_finished = true;
-%                               break;
-% 
-%                           end
-%                      end
-%                      if(while_finished)
-%                           x
-%                           previous_object %preciso de saber qual a localização deste mambo
-%                           z + 1
-%                           linhas(previous_object);
-%                           %find(first_objects(:,) == previous_object)
-%                           find(first_objects(:,z + 1) == previous_object)
-%                           moving_objects(find(first_objects(:,z + 1) == previous_object), b) = x
-%                          % moving_objects(find(linhas(:,1) == previous_object), b) = x
-%                           %moving_objects(linhas(previous_object), b) = x
-%                           %moving_objects(lineeee, b) = x
-%                      end
-% 
-%                       %object_line = objects(:, b - 1) == find(objects(:, b) == x);
-%                       for j=1:size(objetos, 1)                          
-%                           if(objetos(j, b - 1) == a)
-%                               y = objetos(j, b - 1);
-%                               %moving_objects(a, b) = objects(a,b);
-%                           end 
-%                       end
-%                   else
-%                       for y = 1:size(moving_objects,1)
-%                          if(moving_objects(y,:) == 0)
-%                              lineeee = y
-%                              break;
-%                          end
-%                       end
-%                        %line = find(moving_objects() == 0,1);
-%                        x = objetos(a, b);
-%                        b;
-%                        if(objetos(x, b + 1) ~= 0)
-%                            moving_objects(lineeee, b) = objetos(a, b);
-%                            linhas(lineeee) = objetos(a, b);
-%                            first_objects(lineeee, b) = objetos(a, b)
-%                            frames(lineeee) = b;
-%                        end
-%                   end
-% 
-%               end        
-%       end
-%                       
-%   end
-%   
    
    
    
@@ -576,14 +536,7 @@ bg_gray = median(imgs,3);
 %        end
 %    end
 %   
-%    %Remove lines with zeros
-%     for a = 1:size(moving_objects, 2)
-%        for b = size(moving_objects, 1):-1:1
-%           if(~any(moving_objects(b,:)))
-%              moving_objects(b,:) = [];
-%           end
-%        end
-%     end
+
 %    
 %    %assignin('base','frames_first_object', frames_first_object); 
 %    assignin('base', 'frames', frames);
@@ -693,17 +646,9 @@ bg_gray = median(imgs,3);
 %    end
 %    
 % 
-% %Remove lines with zeros
-% %     for a = 1:size(objects, 2)
-% %        for b = size(objects(a).X, 1):-1:1
-% %           if(~any(objects(a).X(b,:)))
-% %              objects(a).X(b,:) = [];
-% %              objects(a).Y(b,:) = [];
-% %              objects(a).Z(b,:) = [];
-% %           end
-% %        end
-% %     end
+
 % 
+
   assignin('base','measurements', measurements);
 end
 
